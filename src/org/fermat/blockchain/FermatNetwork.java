@@ -189,7 +189,7 @@ public class FermatNetwork {
      * @param transaction
      */
     public void broadcast(Transaction transaction) throws TransactionErrorException {
-        System.out.println("Broadcasting transaction...");
+        System.out.println("Broadcasting transaction " + transaction.getHashAsString() + " ...");
         try {
             TransactionBroadcast transactionBroadcast = peerGroup.broadcastTransaction(transaction);
             transactionBroadcast.setMinConnections(minBroadcastConnections);

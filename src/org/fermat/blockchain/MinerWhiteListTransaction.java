@@ -9,12 +9,14 @@ import org.fermatj.script.Script;
 import org.fermatj.script.ScriptBuilder;
 import org.spongycastle.util.encoders.Hex;
 
+import java.util.List;
+
 /**
  * Created by rodrigo on 8/30/16.
  */
 public class MinerWhiteListTransaction {
     private final String privateKey;
-    private final String publicKey;
+    private final List<Address> minerAddresses;
     private final Action action;
 
     private FermatNetwork fermatNetwork;
@@ -28,18 +30,18 @@ public class MinerWhiteListTransaction {
     }
 
     // constructor
-    public MinerWhiteListTransaction(String privateKey, Action action, String publicKey) {
+    public MinerWhiteListTransaction(String privateKey, Action action, List<Address> minerAddresses) {
         //preconditions check
         Preconditions.checkArgument(!privateKey.isEmpty());
         Preconditions.checkNotNull(action);
-        Preconditions.checkArgument(!publicKey.isEmpty());
+        Preconditions.checkNotNull(minerAddresses);
 
         if (logger.getLevel() != Level.DEBUG)
             logger.setLevel(Level.OFF);
 
         this.privateKey = privateKey;
         this.action = action;
-        this.publicKey = publicKey;
+        this.minerAddresses= minerAddresses;
     }
 
     /**
@@ -50,21 +52,14 @@ public class MinerWhiteListTransaction {
         String data;
         switch (this.action){
             case ADD:
-                data =  "add".concat(this.publicKey);
+                data =  "add";
                 break;
             case REM:
-                data =  "rem".concat(this.publicKey);
+                data =  "rem";
                 break;
             default:
-                data =  "add".concat(this.publicKey);
+                data =  "add";
                 break;
-        }
-
-        /**
-         * we are limiting the output to lenght 40
-         */
-        if (data.length() > 40){
-            data = data.substring(0, 40);
         }
 
         return data;
@@ -94,20 +89,27 @@ public class MinerWhiteListTransaction {
         if (wallet.getBalance(Wallet.BalanceType.AVAILABLE).isZero())
             throw new CantConnectToFermatBlockchainException("Wallet balance is zero");
 
-        Wallet.SendRequest sendRequest = Wallet.SendRequest.to(FermatNetwork.NETWORK, key, Coin.CENT);
+        transaction = new Transaction(Main.networkParameters);
+        Wallet.SendRequest sendRequest = Wallet.SendRequest.forTx(transaction);
+        sendRequest.shuffleOutputs = false; // can't allow shuffle because op_Return must be first output
 
         // we are returning any change to the same address
         sendRequest.changeAddress = key.toAddress(FermatNetwork.NETWORK);
 
-        this.transaction = sendRequest.tx;
 
         // add the public key into the op_Return output.
         Script op_return = ScriptBuilder.createOpReturnScript(getOP_Return().getBytes());
-        TransactionOutput output = new TransactionOutput(FermatNetwork.NETWORK, transaction, Coin.ZERO, op_return.getProgram());
-        transaction.addOutput(output);
+        TransactionOutput op_returnOutput = new TransactionOutput(FermatNetwork.NETWORK, transaction, Coin.ZERO, op_return.getProgram());
+        transaction.addOutput(op_returnOutput);
+
+        // Add all the miners addresses into new outputs.
+        for (Address minerAddress : minerAddresses){
+            transaction.addOutput(Transaction.MIN_NONDUST_OUTPUT, minerAddress);
+        }
 
         // we complete the transaction
         wallet.completeTx(sendRequest);
+
         return transaction;
     }
 

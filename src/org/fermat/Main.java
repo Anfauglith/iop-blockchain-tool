@@ -2,6 +2,7 @@ package org.fermat;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.google.common.base.Preconditions;
 import org.apache.commons.cli.*;
 import org.fermat.blockchain.MinerWhiteListTransaction;
 import org.fermat.blockchain.TransactionSummary;
@@ -15,6 +16,8 @@ import org.spongycastle.util.encoders.Hex;
 
 import java.io.Console;
 import java.security.InvalidParameterException;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class Main {
@@ -22,7 +25,8 @@ public class Main {
     private static Options options;
     private static MinerWhiteListTransaction.Action action;
     private static String masterPrivKey;
-    private static String minerPublicKey;
+    private static String[] minerStrAddresses;
+    private static List<Address> minerAddresses;
     public static NetworkParameters networkParameters;
     public static Logger logger = (Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
 
@@ -57,7 +61,6 @@ public class Main {
                 logger.setLevel(Level.ERROR);
 
 
-
             //assign the rest of the mandatory arguments
             defineArguments(commandLineline);
 
@@ -77,19 +80,22 @@ public class Main {
 
         }
 
-        // make sure the public key is valid
-        if (!isMinerPublicKeyValid(minerPublicKey)){
-            // oops, something went wrong
-            System.err.println("Miner's public key is not valid on network " + networkParameters.getPaymentProtocolId() + ".");
-            System.exit(-1);
+        // make sure the miner addresses are valid
+        for (String minerAddress : minerStrAddresses){
+            if (!isMinerAddressValid(minerAddress)){
+                // oops, something went wrong
+                System.err.println("Miner's address " + minerAddress + " is not valid on network " + networkParameters.getPaymentProtocolId() + ".");
+                System.exit(-1);
 
+            }
         }
+
 
         try{
             /**
              * generates the transaction
              */
-            MinerWhiteListTransaction generator = new MinerWhiteListTransaction(masterPrivKey, action, minerPublicKey);
+            MinerWhiteListTransaction generator = new MinerWhiteListTransaction(masterPrivKey, action, minerAddresses);
             Transaction transaction = generator.build();
 
             // shows the summary and waits for confirmation
@@ -102,6 +108,24 @@ public class Main {
             System.err.println(exception.getMessage());
             System.exit(-1);
         }
+    }
+
+    private static boolean isMinerAddressValid(String minerAddress) {
+        Preconditions.checkNotNull(minerAddress);
+
+        Address address = null;
+        try {
+            address = new Address(networkParameters, minerAddress);
+        } catch (AddressFormatException e) {
+            return false;
+        }
+
+        //I will add this address into minerAddresses class
+        if (minerAddresses == null)
+            minerAddresses = new ArrayList<>();
+
+        minerAddresses.add(address);
+        return true;
     }
 
     /**
@@ -121,14 +145,6 @@ public class Main {
         return true;
     }
 
-    /**
-     * waits for confirmation from the user
-     * @return
-     */
-    private static boolean getConfirmation() {
-        
-        return false;
-    }
 
     /**
      * shows on screen the summary of the output transaction
@@ -139,33 +155,20 @@ public class Main {
         summary.showSummary();
     }
 
-    /**
-     * validates the public key is in a valid format
-     * @param minerPublicKey
-     * @return
-     */
-    private static boolean isMinerPublicKeyValid(String minerPublicKey) {
-        ECKey publicKey = null;
-        try{
-            publicKey = ECKey.fromPublicOnly(Hex.decode(minerPublicKey));
-            if (!publicKey.isPubKeyOnly())
-                return false;
-        }  catch (Exception e){
-            return false;
-        }
-        return true;
-    }
 
     private static void defineArguments(CommandLine commandLineline) {
         // make sure required parameters have data.
-        if (!commandLineline.hasOption("p") || !commandLineline.hasOption("P") || !commandLineline.hasOption("a")){
-            String output = "Required parameter missing.\n Private Key [p], Public Key [P] and Action [a] are required parameters.";
+        if (!commandLineline.hasOption("p") || !commandLineline.hasOption("m") || !commandLineline.hasOption("a")){
+            String output = "Required parameter missing.\n Private Key [p], MinerAddresses [m] and Action [a] are required parameters.";
             throw new RuntimeException(output);
         }
         //master private key
-        masterPrivKey = commandLineline.getOptionValue("P");
+        masterPrivKey = commandLineline.getOptionValue("p");
+
         // miner's public key
-        minerPublicKey = commandLineline.getOptionValue("p");
+        minerStrAddresses = commandLineline.getOptionValues("m");
+        if (minerStrAddresses == null)
+            throw new RuntimeException("Miner's addresses not provided.");
         
         // action
         switch (commandLineline.getOptionValue("a").toLowerCase()){
@@ -216,14 +219,15 @@ public class Main {
         options.addOption(action);
 
         // add private key option
-        Option privateKey = new Option("P", "Private", true, "Master private key");
+        Option privateKey = new Option("p", "private", true, "Master private key");
         privateKey.setOptionalArg(false);
         options.addOption(privateKey);
 
         // add public key option
-        Option publicKey = new Option("p", "public", true, "Miner's public key");
-        publicKey.setOptionalArg(false);
-        options.addOption(publicKey);
+        Option minerAddresses = new Option("m", "minerAddresses", true, "Miner's addresses to include into whitelist. Max 20 addresses");
+        minerAddresses.setOptionalArg(true);
+        minerAddresses.setArgs(20);
+        options.addOption(minerAddresses);
 
         // add network option
         Option network = new Option("n", "network", true, "MAIN, TEST, REGTEST networks. Default is MAIN");

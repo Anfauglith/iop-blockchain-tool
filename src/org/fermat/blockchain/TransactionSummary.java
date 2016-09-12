@@ -1,6 +1,7 @@
 package org.fermat.blockchain;
 
 import com.google.common.base.Preconditions;
+import org.fermat.Main;
 import org.fermatj.core.Transaction;
 import org.fermatj.core.TransactionOutput;
 import org.spongycastle.util.encoders.Hex;
@@ -31,9 +32,6 @@ public class TransactionSummary {
             }
         }
 
-        if (data.length() != 40)
-            throw new RuntimeException("Output data is not correct");
-
         return data;
     }
 
@@ -53,8 +51,16 @@ public class TransactionSummary {
             output.append("Action: ");
             output.append(action.toString());
             output.append(System.lineSeparator());
-            output.append("Public key: ");
-            output.append(data.substring(3));
+            output.append("Miner addresses: ");
+            output.append(System.lineSeparator());
+            for (TransactionOutput minerOutput : transaction.getOutputs()){
+                if( minerOutput.getScriptPubKey().isSentToAddress())
+                    if (minerOutput.getValue().compareTo(Transaction.MIN_NONDUST_OUTPUT) == 0){
+                        output.append(minerOutput.getAddressFromP2PKHScript(Main.networkParameters).toString());
+                        output.append(System.lineSeparator());
+                    }
+            }
+
             System.out.println(output.toString());
         } catch (Exception e) {
             // if data is invalid I might have substring cut errors
