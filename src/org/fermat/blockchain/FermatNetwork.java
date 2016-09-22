@@ -85,6 +85,7 @@ public class FermatNetwork {
         if (NETWORK == RegTestParams.get())
         {
             peerGroup.setUseLocalhostPeerWhenPossible(true);
+            peerGroup.addAddress(new PeerAddress(new InetSocketAddress("127.0.0.1", 14820)));
             minBroadcastConnections = 1;
         } else {
             peerGroup.addPeerDiscovery(new DnsDiscovery(NETWORK));
