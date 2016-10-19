@@ -29,6 +29,7 @@ public class Main {
     private static List<Address> minerAddresses;
     public static NetworkParameters networkParameters;
     public static Logger logger = (Logger)LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    public static int factor;
 
 
     public static void main(String[] args)  {
@@ -81,14 +82,17 @@ public class Main {
         }
 
         // make sure the miner addresses are valid
-        for (String minerAddress : minerStrAddresses){
-            if (!isMinerAddressValid(minerAddress)){
-                // oops, something went wrong
-                System.err.println("Miner's address " + minerAddress + " is not valid on network " + networkParameters.getPaymentProtocolId() + ".");
-                System.exit(-1);
+        if (minerStrAddresses != null){
+            for (String minerAddress : minerStrAddresses){
+                if (!isMinerAddressValid(minerAddress)){
+                    // oops, something went wrong
+                    System.err.println("Miner's address " + minerAddress + " is not valid on network " + networkParameters.getPaymentProtocolId() + ".");
+                    System.exit(-1);
 
+                }
             }
         }
+
 
 
         try{
@@ -158,17 +162,13 @@ public class Main {
 
     private static void defineArguments(CommandLine commandLineline) {
         // make sure required parameters have data.
-        if (!commandLineline.hasOption("p") || !commandLineline.hasOption("m") || !commandLineline.hasOption("a")){
-            String output = "Required parameter missing.\n Private Key [p], MinerAddresses [m] and Action [a] are required parameters.";
+        if (!commandLineline.hasOption("p") || !commandLineline.hasOption("a")){
+            String output = "Required parameter missing.\n Private Key [p] and Action [a] are required parameters.";
             throw new RuntimeException(output);
         }
         //master private key
         masterPrivKey = commandLineline.getOptionValue("p");
 
-        // miner's public key
-        minerStrAddresses = commandLineline.getOptionValues("m");
-        if (minerStrAddresses == null)
-            throw new RuntimeException("Miner's addresses not provided.");
         
         // action
         switch (commandLineline.getOptionValue("a").toLowerCase()){
@@ -178,9 +178,36 @@ public class Main {
             case "rem":
                 action = MinerWhiteListTransaction.Action.REM;
                 break;
+            case "enable_cap":
+                action = MinerWhiteListTransaction.Action.ENABLE_CAP;
+                break;
+            case "disable_cap":
+                action = MinerWhiteListTransaction.Action.DISABLE_CAP;
+                break;
             default:
                 throw new InvalidParameterException(commandLineline.getOptionValue("a") + " is not a valid action parameter.");
         }
+
+        // miner's public key
+        minerStrAddresses = commandLineline.getOptionValues("m");
+        // make sure no address provided if we are enabling or disabled miner cap
+        if (action == MinerWhiteListTransaction.Action.DISABLE_CAP || action == MinerWhiteListTransaction.Action.ENABLE_CAP){
+            if (minerStrAddresses != null)
+                throw new RuntimeException("Can't provide miner addresses when enabling or disabling cap.");
+        } else {
+            if (minerStrAddresses == null)
+                throw new RuntimeException("Miner's addresses not provided.");
+        }
+
+        // get the factor if provided
+        try{
+            if (commandLineline.hasOption("f"))
+                factor = Integer.parseInt(commandLineline.getOptionValue("f"));
+        } catch (Exception e){
+            throw new RuntimeException("Factor provided not parsable into int.");
+        }
+
+
 
         // define the network, if any. RegTest by default.
         if (commandLineline.hasOption("n")) {
@@ -214,7 +241,7 @@ public class Main {
         Options options = new Options();
 
         // add Action option
-        Option action = new Option("a", "action", true, "ADD or REM a public key to the blockchain");
+        Option action = new Option("a", "action", true, "ADD, REM, ENABLE_CAP or DISABLE_CAP.");
         action.setOptionalArg(false);
         options.addOption(action);
 
@@ -233,6 +260,11 @@ public class Main {
         Option network = new Option("n", "network", true, "MAIN, TEST, REGTEST networks. Default is MAIN");
         network.setOptionalArg(false);
         options.addOption(network);
+
+        // add network option
+        Option factor = new Option("f", "factor", true, "Multiplying factor for minerCap limit when used with enable_cap action. Default is 2.");
+        network.setOptionalArg(false);
+        options.addOption(factor);
 
 
         //add version option

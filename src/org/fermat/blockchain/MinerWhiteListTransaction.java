@@ -26,7 +26,7 @@ public class MinerWhiteListTransaction {
 
     //Action Enum
     public enum Action{
-        ADD , REM
+        ADD , REM, ENABLE_CAP, DISABLE_CAP
     }
 
     // constructor
@@ -34,7 +34,7 @@ public class MinerWhiteListTransaction {
         //preconditions check
         Preconditions.checkArgument(!privateKey.isEmpty());
         Preconditions.checkNotNull(action);
-        Preconditions.checkNotNull(minerAddresses);
+        //Preconditions.checkNotNull(minerAddresses);
 
         if (logger.getLevel() != Level.DEBUG)
             logger.setLevel(Level.OFF);
@@ -49,6 +49,10 @@ public class MinerWhiteListTransaction {
      * @return
      */
     private String getOP_Return (){
+        int factor = Main.factor;
+        if (factor == 0)
+            factor = 2;
+
         String data;
         switch (this.action){
             case ADD:
@@ -56,6 +60,12 @@ public class MinerWhiteListTransaction {
                 break;
             case REM:
                 data =  "rem";
+                break;
+            case ENABLE_CAP:
+                data = "enable_cap:" + factor; // we are including the factor of the cap
+                break;
+            case DISABLE_CAP:
+                data = "disable_cap";
                 break;
             default:
                 data =  "add";
@@ -103,10 +113,11 @@ public class MinerWhiteListTransaction {
         transaction.addOutput(op_returnOutput);
 
         // Add all the miners addresses into new outputs.
-        for (Address minerAddress : minerAddresses){
-            transaction.addOutput(Transaction.MIN_NONDUST_OUTPUT, minerAddress);
+        if (minerAddresses != null){
+            for (Address minerAddress : minerAddresses){
+                transaction.addOutput(Transaction.MIN_NONDUST_OUTPUT, minerAddress);
+            }
         }
-
         // we complete the transaction
         wallet.completeTx(sendRequest);
 

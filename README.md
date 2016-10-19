@@ -13,12 +13,13 @@ $ java -jar iop-blockchain-tool/out/artifacts/iop_blockchain_tool_jar/iop-blockc
 ```
 usage: IoP-Blockchain-Tool [-a <arg>] [-d] [-h] [-n <arg>] [-P <arg>] [-p
        <arg>] [-v]
- -a,--action <arg>    ADD or REM a public key to the blockchain
+ -a,--action <arg>    ADD or REM a public key to the blockchain. ENABLE_CAP or DISABLE_CAP for miners.
  -d,--debug           Print debugging information. Disabled by default.
  -h,--help            Print this message
  -n,--network <arg>   MAIN, TEST, REGTEST networks. Default is MAIN
  -p,--private <arg>   Master private key
  -m,--MinerAddress <args>    One or up to 20 Miner addresses to add in the transaction.
+ -f, --factor <arg> The factor used to multiple the average block per miner to set the miner cap value. Default value is 2.
  -v,--version         Print the version information and exit
 
 ```
@@ -28,6 +29,8 @@ Mandatory arguments are:
 * -Action
  *ADD*:  adds a public key into the miner white list.
   *REM*:  removes a public key from the miner white list.
+  *ENABLE_CAP*: enables the miner cap on the blockchain. 
+  *DISABLE_CAP*: enables the miner cap on the blockchain.
   
   * -private: the **master private key** allowed to execute this transactions.
   
@@ -35,8 +38,16 @@ Mandatory arguments are:
   
 Default network is Mainnet. To switch, use the -network parameter. Example:
 
+Adds miner uZE6SzrtYnWwr2zUg7RsvQeHKSRjSH6hKJ on testnet network.
 ```
 iop-blockchain-tool.jar -a add -p validPrivateKey -m uZE6SzrtYnWwr2zUg7RsvQeHKSRjSH6hKJ -n Test
+```
+
+Enables the miner Cap in production and sets the factor to 3:
+
+```
+iop-blockchain-tool.jar  -p validPrivateKey -a enable_cap -f 3
+
 ```
 
 ## Program description

@@ -46,10 +46,8 @@ public class TransactionSummary {
         try{
             StringBuilder output = new StringBuilder();
 
-            MinerWhiteListTransaction.Action action = MinerWhiteListTransaction.Action.valueOf(data.substring(0,3).toUpperCase());
-
             output.append("Action: ");
-            output.append(action.toString());
+            output.append(data);
             output.append(System.lineSeparator());
             output.append("Miner addresses: ");
             output.append(System.lineSeparator());
